@@ -1,0 +1,118 @@
+{
+  "project_info": {
+    "project_number": "1080570212732",
+    "project_id": "diabetic-app-k",
+    "storage_bucket": "diabetic-app-k.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1080570212732:android:db3042212b5562fbd4b4f9",
+        "android_client_info": {
+          "package_name": "com.example"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1080570212732-rsaj5u4nncbjsgi0jikepi66jrn0e8ka.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlYaTpBWs2P-YD92xqDV35uFdJm_Zx1MQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1080570212732-rsaj5u4nncbjsgi0jikepi66jrn0e8ka.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1080570212732-o3dvm58v6jmbqs3c9kfk4qe1549kifg4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.diabeticApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1080570212732:android:33a9880ae7bd42f9d4b4f9",
+        "android_client_info": {
+          "package_name": "com.example.diabetic_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1080570212732-rsaj5u4nncbjsgi0jikepi66jrn0e8ka.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlYaTpBWs2P-YD92xqDV35uFdJm_Zx1MQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1080570212732-rsaj5u4nncbjsgi0jikepi66jrn0e8ka.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1080570212732-o3dvm58v6jmbqs3c9kfk4qe1549kifg4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.diabeticApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1080570212732:android:523a409de7c5dcf8d4b4f9",
+        "android_client_info": {
+          "package_name": "com.example.sugar_plus"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1080570212732-rsaj5u4nncbjsgi0jikepi66jrn0e8ka.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlYaTpBWs2P-YD92xqDV35uFdJm_Zx1MQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1080570212732-rsaj5u4nncbjsgi0jikepi66jrn0e8ka.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1080570212732-o3dvm58v6jmbqs3c9kfk4qe1549kifg4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.diabeticApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
