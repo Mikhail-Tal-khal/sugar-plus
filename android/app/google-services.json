@@ -50,6 +50,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1080570212732-hq9cgoifqo5d0v45mhv5dj6qn8c7u6s6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.diabetic_app",
+            "certificate_hash": "cac773f42122d5e03bfa0cd37c83afab2fca7658"
+          }
+        },
+        {
           "client_id": "1080570212732-rsaj5u4nncbjsgi0jikepi66jrn0e8ka.apps.googleusercontent.com",
           "client_type": 3
         }
