@@ -40,6 +40,11 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    packagingOptions {
+        pickFirst("META-INF/DEPENDENCIES")
+    }
+
 }
 
 flutter {

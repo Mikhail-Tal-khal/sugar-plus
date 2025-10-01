@@ -1,0 +1,16 @@
+flutter_launcher_icons:
+  image_path: "assets/icons/app_icon/sugar+.png"
+
+  android: "launcher_icon"
+  image_path_android: "assets/icons/app_icon/sugar+.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  adaptive_icon_background: "assets/icons/app_icon/sugar+.png"
+  adaptive_icon_foreground: "assets/icons/app_icon/sugar+.png"
+  adaptive_icon_monochrome: "assets/icons/app_icon/sugar+.png"
+
+  ios: true
+  image_path_ios: "assets/icons/app_icon/sugar+.png"
+  remove_alpha_channel_ios: true
+  image_path_ios_dark_transparent: "assets/icons/app_icon/sugar+.png"
+  image_path_ios_tinted_grayscale: "assets/icons/app_icon/sugar+.png"
+  desaturate_tinted_to_grayscale_ios: true

@@ -31,14 +31,23 @@ class _FixedDiabetesDetectionScreenState
   bool _faceDetected = false;
   bool _eyesDetected = false;
   
-  // Readings
-  final List<double> _readings = [];
+  // Camera properties
+  double _cameraAspectRatio = 9 / 16;
+  bool _isCameraBusy = false;
+  
+  // Readings storage (like Python lists)
+  final List<double> _refractiveIndices = [];
+  final List<double> _sugarLevels = [];
+  final List<int> _nValues = [];
   double? _currentSugarLevel;
+  
+  // Status
   String _statusMessage = 'Initializing camera...';
+  String _diagnosisMessage = '';
   
   // Processing control
   DateTime? _lastProcessTime;
-  static const _processingDelay = Duration(milliseconds: 800);
+  static const _processingDelay = Duration(milliseconds: 1000);
   static const _maxReadings = 10;
 
   @override
@@ -91,7 +100,7 @@ class _FixedDiabetesDetectionScreenState
 
       _cameraController = CameraController(
         frontCamera,
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.yuv420,
       );
@@ -101,6 +110,7 @@ class _FixedDiabetesDetectionScreenState
       if (mounted) {
         setState(() {
           _isInitialized = true;
+          _cameraAspectRatio = _cameraController!.value.aspectRatio;
           _statusMessage = 'Position your face in the frame';
         });
         _startImageStream();
@@ -123,7 +133,7 @@ class _FixedDiabetesDetectionScreenState
   }
 
   bool _shouldSkipFrame() {
-    if (_isProcessing) return true;
+    if (_isProcessing || _isCameraBusy) return true;
     if (_lastProcessTime != null) {
       final elapsed = DateTime.now().difference(_lastProcessTime!);
       if (elapsed < _processingDelay) return true;
@@ -132,13 +142,17 @@ class _FixedDiabetesDetectionScreenState
   }
 
   Future<void> _processImage(CameraImage image) async {
+    if (_isCameraBusy) return;
+    
     _isProcessing = true;
+    _isCameraBusy = true;
     _lastProcessTime = DateTime.now();
 
     try {
       final inputImage = _buildInputImage(image);
       if (inputImage == null) {
         _isProcessing = false;
+        _isCameraBusy = false;
         return;
       }
 
@@ -164,11 +178,12 @@ class _FixedDiabetesDetectionScreenState
           
           if (!hasEyes) {
             _statusMessage = 'Face detected - look at camera';
-          } else if (_readings.length < _maxReadings) {
-            _statusMessage = 'Analyzing... ${_readings.length}/$_maxReadings';
-            _calculateReading(face);
+          } else if (_sugarLevels.length < _maxReadings) {
+            _statusMessage = 'Analyzing... ${_sugarLevels.length}/$_maxReadings';
+            _calculateSugarLevel(face, image.width, image.height);
           } else {
             _statusMessage = 'Analysis complete!';
+            _calculateFinalDiagnosis();
           }
         });
       }
@@ -176,6 +191,7 @@ class _FixedDiabetesDetectionScreenState
       debugPrint('Processing error: $e');
     } finally {
       _isProcessing = false;
+      _isCameraBusy = false;
     }
   }
 
@@ -183,25 +199,21 @@ class _FixedDiabetesDetectionScreenState
     try {
       final camera = _cameraController!.description;
       
-      // Get proper rotation based on device orientation
+      // Get proper rotation
       final sensorOrientation = camera.sensorOrientation;
-      InputImageRotation? rotation;
+      InputImageRotation rotation;
       
       if (camera.lensDirection == CameraLensDirection.front) {
-        // Front camera
-        rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
+        rotation = InputImageRotation.rotation270deg;
       } else {
-        // Back camera
-        rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
+        rotation = InputImageRotationValue.fromRawValue(sensorOrientation) ?? InputImageRotation.rotation0deg;
       }
-
-      if (rotation == null) return null;
 
       final format = InputImageFormatValue.fromRawValue(image.format.raw);
       if (format == null) return null;
 
       final plane = image.planes.first;
-
+      
       return InputImage.fromBytes(
         bytes: plane.bytes,
         metadata: InputImageMetadata(
@@ -217,57 +229,74 @@ class _FixedDiabetesDetectionScreenState
     }
   }
 
-  void _calculateReading(Face face) {
-    if (_readings.length >= _maxReadings) return;
+  void _calculateSugarLevel(Face face, int imageWidth, int imageHeight) {
+    if (_sugarLevels.length >= _maxReadings) return;
 
-    // Enhanced calculation
     final leftEye = face.landmarks[FaceLandmarkType.leftEye];
     final rightEye = face.landmarks[FaceLandmarkType.rightEye];
     
     if (leftEye == null || rightEye == null) return;
 
-    // Check head pose
-    final headAngleY = face.headEulerAngleY ?? 0;
-    final headAngleZ = face.headEulerAngleZ ?? 0;
-    
-    if (headAngleY.abs() > 25 || headAngleZ.abs() > 25) {
-      setState(() {
-        _statusMessage = 'Face camera directly';
-      });
-      return;
-    }
-
-    // Calculate based on eye positions
+    // Get eye center coordinates (similar to Python's cx, cy)
     final eyeCenterX = (leftEye.position.x + rightEye.position.x) / 2;
     final eyeCenterY = (leftEye.position.y + rightEye.position.y) / 2;
-    
-    // Normalized positions
-    final faceBox = face.boundingBox;
-    final normalizedX = (eyeCenterX - faceBox.left) / faceBox.width;
-    final normalizedY = (eyeCenterY - faceBox.top) / faceBox.height;
-    
-    // Calculate angle
-    final angle = math.atan2(normalizedY - 0.5, normalizedX - 0.5);
-    
-    // Refractive index calculation
-    const baseIndex = 1.336;
-    final angleComponent = math.sin(angle.abs()).clamp(0.1, 0.9);
-    final refractiveIndex = baseIndex + (0.008 * angleComponent);
-    
-    // Convert to blood sugar
-    final glucoseConcentration = (refractiveIndex - 1.333) / 0.0000142;
-    
-    // Add realistic variation
-    final random = math.Random();
-    final baseLevel = 90 + random.nextDouble() * 50; // 90-140 base
-    final variation = (random.nextDouble() - 0.5) * 15;
-    
-    final sugarLevel = (baseLevel + glucoseConcentration * 0.1 + variation)
-        .clamp(70.0, 220.0);
+
+    // Calculate angle of incidence (like Python's np.arctan2(cx, cy))
+    final angle = math.atan2(eyeCenterX, eyeCenterY);
+    debugPrint('ANGLE OF INCIDENCE = $angle');
+
+    // Calculate refractive index using Snell's law (like Python: n = 1 / sin(angle))
+    // Add small epsilon to avoid division by zero
+    final n = 1 / (math.sin(angle.abs()) + 0.001);
+    debugPrint('REFRACTIVE INDEX = $n');
+
+    // Store refractive index
+    _refractiveIndices.add(n);
+
+    // Calculate area of triangle using Heron's formula (like Python code)
+    final a = 50.0; // fixed side a
+    final b = 50.0; // fixed side b
+    final c = math.sqrt(a * a + b * b - 2 * a * b * math.cos(angle));
+    final s = (a + b + c) / 2;
+    final area = math.sqrt(s * (s - a) * (s - b) * (s - c));
+
+    // CONVERSION TO BRIX (like Python: 1 BRIX = 1.33442)
+    final brix = (n * 1) / 1.33442;
+    debugPrint('BRIX = $brix');
+
+    // Conversion to blood sugar levels (like Python: 1 brix = 100 mm/dL)
+    final sugarLevel = (brix * 100).clamp(70.0, 220.0);
+    debugPrint('YOUR SUGAR LEVEL IS = $sugarLevel mm/dL');
+
+    // Store values for final calculation
+    setState(() {
+      _sugarLevels.add(sugarLevel);
+      _nValues.add(_sugarLevels.length);
+      _currentSugarLevel = sugarLevel;
+    });
+
+    // Individual reading diagnosis
+    if (sugarLevel < 140) {
+      debugPrint("NO DIABETES DETECTED IN THIS READING");
+    } else {
+      debugPrint("HIGH SUGAR LEVEL DETECTED IN THIS READING");
+    }
+  }
+
+  void _calculateFinalDiagnosis() {
+    if (_sugarLevels.isEmpty) return;
+
+    // Calculate average sugar level from all readings
+    final averageSugarLevel = _sugarLevels.reduce((a, b) => a + b) / _sugarLevels.length;
     
     setState(() {
-      _readings.add(sugarLevel);
-      _currentSugarLevel = _readings.reduce((a, b) => a + b) / _readings.length;
+      _currentSugarLevel = averageSugarLevel;
+      
+      if (averageSugarLevel < 140) {
+        _diagnosisMessage = "NO DIABETES DETECTED\nTake a healthy diet, THANK YOU FOR USING THE DIABETIC APP";
+      } else {
+        _diagnosisMessage = "Your sugar levels are high work on your diet\nHere are the recommended foods for your diet, also take a lot of water";
+      }
     });
   }
 
@@ -320,9 +349,11 @@ class _FixedDiabetesDetectionScreenState
         'diagnosis': isNormal ? 'Normal Range' : 'Elevated Level',
         'isNormal': isNormal,
         'timestamp': FieldValue.serverTimestamp(),
-        'allReadings': _readings,
-        'readingCount': _readings.length,
-        'method': 'fixed_camera_analysis',
+        'allReadings': _sugarLevels,
+        'readingCount': _sugarLevels.length,
+        'refractiveIndices': _refractiveIndices,
+        'method': 'eye_scan_analysis',
+        'diagnosisMessage': _diagnosisMessage,
       });
 
       if (mounted) {
@@ -374,7 +405,7 @@ class _FixedDiabetesDetectionScreenState
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: const Text('Eye Scan'),
+        title: const Text('Diabetic Eye Scan'),
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline),
@@ -406,12 +437,9 @@ class _FixedDiabetesDetectionScreenState
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Camera preview - FIXED ORIENTATION
+        // Camera preview
         Center(
-          child: AspectRatio(
-            aspectRatio: _cameraController!.value.aspectRatio,
-            child: CameraPreview(_cameraController!),
-          ),
+          child: _buildCameraPreview(),
         ),
 
         // Dark overlay
@@ -467,16 +495,16 @@ class _FixedDiabetesDetectionScreenState
                     ),
                   ],
                 ),
-                if (_readings.isNotEmpty) ...[
+                if (_sugarLevels.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   LinearProgressIndicator(
-                    value: _readings.length / _maxReadings,
+                    value: _sugarLevels.length / _maxReadings,
                     backgroundColor: Colors.grey.shade800,
                     valueColor: AlwaysStoppedAnimation(_getGuideColor()),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Progress: ${_readings.length}/$_maxReadings',
+                    'Progress: ${_sugarLevels.length}/$_maxReadings',
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 12,
@@ -507,8 +535,28 @@ class _FixedDiabetesDetectionScreenState
         if (_currentSugarLevel != null) _buildResultsOverlay(),
 
         // Bottom button
-        if (_readings.length >= 5) _buildSaveButton(),
+        if (_sugarLevels.length >= 5) _buildSaveButton(),
       ],
+    );
+  }
+
+  Widget _buildCameraPreview() {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return Container(
+        color: Colors.black,
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return AspectRatio(
+          aspectRatio: _cameraAspectRatio,
+          child: CameraPreview(_cameraController!),
+        );
+      },
     );
   }
 
@@ -551,50 +599,80 @@ class _FixedDiabetesDetectionScreenState
     final isNormal = _currentSugarLevel! < 140;
     
     return Positioned(
-      bottom: 120,
+      bottom: _diagnosisMessage.isNotEmpty ? 180 : 120,
       left: 20,
       right: 20,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isNormal
-              ? AppColors.success.withOpacity(0.9)
-              : Colors.orange.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isNormal ? AppColors.success : Colors.orange,
-            width: 2,
+      child: Column(
+        children: [
+          // Sugar level display
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isNormal
+                  ? AppColors.success.withOpacity(0.9)
+                  : Colors.orange.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isNormal ? AppColors.success : Colors.orange,
+                width: 2,
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  '${_currentSugarLevel!.toStringAsFixed(1)} mg/dL',
+                  style: const TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isNormal ? 'Normal Range' : 'Elevated Level',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Based on ${_sugarLevels.length} readings',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            Text(
-              '${_currentSugarLevel!.toStringAsFixed(1)} mg/dL',
-              style: const TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+          
+          // Diagnosis message
+          if (_diagnosisMessage.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isNormal ? AppColors.success : Colors.orange,
+                  width: 1,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isNormal ? 'Normal Range' : 'Elevated Level',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Based on ${_readings.length} readings',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
+              child: Text(
+                _diagnosisMessage,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -640,45 +718,32 @@ class _FixedDiabetesDetectionScreenState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('How to Use'),
+        title: const Text('How to Use - Diabetic Eye Scan'),
         content: const SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
+                'Technology:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              SizedBox(height: 8),
+              Text('• Uses eye reflection analysis'),
+              Text('• Calculates refractive index'),
+              Text('• Converts to blood sugar levels'),
+              SizedBox(height: 16),
+              Text(
                 'Instructions:',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 8),
               Text('1. Position your face in the frame'),
-              SizedBox(height: 8),
               Text('2. Look directly at the camera'),
-              SizedBox(height: 8),
               Text('3. Keep your face steady'),
-              SizedBox(height: 8),
-              Text('4. Wait for analysis to complete'),
-              SizedBox(height: 8),
+              Text('4. Wait for 10 readings to complete'),
               Text('5. Save results to history'),
               SizedBox(height: 16),
-              Text(
-                'Tips:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              SizedBox(height: 12),
-              Text('• Use good lighting'),
-              SizedBox(height: 8),
-              Text('• Remove glasses if possible'),
-              SizedBox(height: 8),
-              Text('• Stay 30-50cm from camera'),
-              SizedBox(height: 8),
-              Text('• Face camera directly (not tilted)'),
-              SizedBox(height: 16),
-              Text(
-                '⚠️ Important: This is experimental technology. '
-                'Not for medical diagnosis. Always consult healthcare professionals.',
-                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
-              ),
             ],
           ),
         ),
