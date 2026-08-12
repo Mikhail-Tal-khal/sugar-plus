@@ -43,3 +43,29 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Release signing secrets - never commit these
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
+*.jks
+*.keystore
+
+# Google Play / Firebase service account keys - never commit these
+pc-api-key.json
+**/pc-api-key.json
+android/fastlane/*.json
+*-service-account*.json
+android/fastlane/report.xml
+android/fastlane/test_output
+android/.bundle/
+
+# iOS local build config (GoogleService-Info.plist IS committed here, same
+# as android/app/google-services.json, since this project already tracks
+# Firebase client config in-repo)
+ios/Flutter/Generated.xcconfig
+
+# Backend virtualenv / caches (backend lives in a sibling repo, but ignore
+# if anyone ever copies it in-tree)
+sugar_plus_backend/.venv/
+sugar_plus_backend/__pycache__/

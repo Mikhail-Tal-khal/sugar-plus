@@ -82,22 +82,24 @@ class AnalyticsScreen extends StatelessWidget {
     final chartData = <ChartData>[];
     final refractiveData = <ChartData>[];
     double totalSugar = 0;
-    double totalRefractive = 0;
     int normalCount = 0;
     int highCount = 0;
 
     for (var test in tests) {
       final data = test.data() as Map<String, dynamic>;
       final sugarLevel = (data['sugarLevel'] as num?)?.toDouble() ?? 0.0;
-      final refractiveIndex = (data['refractiveIndex'] as num?)?.toDouble() ?? 0.0;
+      final refractiveIndex = (data['refractiveIndex'] as num?)?.toDouble();
       final timestamp = (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
 
       chartData.add(ChartData(timestamp, sugarLevel));
-      refractiveData.add(ChartData(timestamp, refractiveIndex));
-      
+      // Manual entries have no refractive index (there's no scan involved),
+      // so only scan results feed the refractive-index charts.
+      if (refractiveIndex != null) {
+        refractiveData.add(ChartData(timestamp, refractiveIndex));
+      }
+
       totalSugar += sugarLevel;
-      totalRefractive += refractiveIndex;
-      
+
       if (sugarLevel < 140) {
         normalCount++;
       } else {
@@ -106,7 +108,6 @@ class AnalyticsScreen extends StatelessWidget {
     }
 
     final avgSugar = totalSugar / tests.length;
-    final avgRefractive = totalRefractive / tests.length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

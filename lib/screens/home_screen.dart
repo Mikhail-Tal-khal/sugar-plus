@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sugar_plus/services/auth_service.dart';
 import 'package:sugar_plus/screens/login_screen.dart';
-import 'package:sugar_plus/test/enhanced_camera_detection.dart';
+import 'package:sugar_plus/screens/glucoscan_screen.dart';
 import 'package:sugar_plus/algorithm/history_screen.dart';
 import 'package:sugar_plus/algorithm/analytics_screen.dart';
 import 'package:sugar_plus/utils/colors.dart';
@@ -116,14 +116,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openCamera() async {
     final hasPermission = await PermissionsHelper.requestCameraPermission(context);
-    
+
     if (hasPermission && mounted) {
-      final result = await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const FixedDiabetesDetectionScreen()),
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const GlucoScanScreen()),
       );
-      
-      // Reload stats after returning from camera
-      if (result != null || mounted) {
+
+      // Reload stats after returning from GlucoScan
+      if (mounted) {
         _loadStats();
       }
     }
@@ -159,6 +159,66 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
   
+  Future<void> _handleDeleteAccount() async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This permanently deletes your account and all of your saved '
+          'readings. This cannot be undone. Are you sure?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await authService.deleteAccount();
+      if (mounted) {
+        Navigator.of(context).pop(); // dismiss loading indicator
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // dismiss loading indicator
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Could not delete account'),
+            content: Text(e.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
   void _navigateToScreen(int index) {
     if (index == _currentIndex) return;
     
@@ -238,6 +298,14 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () {
                 Navigator.pop(context);
                 _handleSignOut();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_forever, color: AppColors.error),
+              title: const Text('Delete Account', style: TextStyle(color: AppColors.error)),
+              onTap: () {
+                Navigator.pop(context);
+                _handleDeleteAccount();
               },
             ),
           ],
@@ -467,7 +535,7 @@ class _HomeScreenState extends State<HomeScreen> {
           childAspectRatio: 0.85,
           children: [
             FeatureCard(
-              title: 'Eye Scan',
+              title: 'GlucoScan',
               icon: Icons.remove_red_eye,
               onTap: _openCamera,
             ),

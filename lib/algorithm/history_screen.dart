@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sugar_plus/utils/colors.dart';
+import 'package:sugar_plus/widgets/manual_entry_dialog.dart';
 import 'package:intl/intl.dart';
 
 class HistoryScreen extends StatelessWidget {
@@ -18,6 +19,12 @@ class HistoryScreen extends StatelessWidget {
         title: const Text('Test History'),
         backgroundColor: AppColors.surface,
         elevation: 0,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => showManualEntryDialog(context),
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Log Reading', style: TextStyle(color: Colors.white)),
       ),
       body: user == null
           ? const Center(child: Text('Please login to view history'))
@@ -93,6 +100,8 @@ class HistoryScreen extends StatelessWidget {
     final diagnosis = data['diagnosis'] as String? ?? 'Unknown';
     final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
     final isNormal = sugarLevel < 140;
+    final source = data['source'] as String? ?? 'scan';
+    final isManual = source == 'manual';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -145,6 +154,32 @@ class HistoryScreen extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: (isManual ? AppColors.info : AppColors.primary).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isManual ? Icons.edit_outlined : Icons.remove_red_eye_outlined,
+                          size: 12,
+                          color: isManual ? AppColors.info : AppColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          isManual ? 'Manual' : 'Scan',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isManual ? AppColors.info : AppColors.primary,
                           ),
                         ),
                       ],

@@ -6,9 +6,20 @@ gradle-wrapper.jar
 /local.properties
 GeneratedPluginRegistrant.java
 .cxx/
+.kotlin/
 
 # Remember to never publicly share your keystore.
 # See https://flutter.dev/to/reference-keystore
 key.properties
 **/*.keystore
 **/*.jks
+
+# Fastlane / Google Play service account credentials - never commit these.
+fastlane/pc-api-key.json
+fastlane/*.json
+fastlane/report.xml
+fastlane/test_output
+
+# Ruby/Bundler local install state (fastlane's own dependencies)
+.bundle/
+vendor/bundle/

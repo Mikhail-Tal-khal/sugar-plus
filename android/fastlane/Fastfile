@@ -1,0 +1,50 @@
+default_platform(:android)
+
+platform :android do
+  desc "Run Android unit tests"
+  lane :test do
+    gradle(task: "test")
+  end
+
+  desc "Build a release App Bundle and upload it to the Play Store internal testing track"
+  lane :internal do
+    gradle(task: "clean")
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+    )
+    upload_to_play_store(
+      track: "internal",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      json_key: "fastlane/pc-api-key.json",
+    )
+  end
+
+  desc "Promote the current internal build to the production track"
+  lane :promote_to_production do
+    upload_to_play_store(
+      track: "internal",
+      track_promote_to: "production",
+      json_key: "fastlane/pc-api-key.json",
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+  end
+
+  desc "Build a release App Bundle and upload it straight to production (use with care)"
+  lane :deploy do
+    gradle(task: "clean")
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+    )
+    upload_to_play_store(
+      track: "production",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      json_key: "fastlane/pc-api-key.json",
+    )
+  end
+end

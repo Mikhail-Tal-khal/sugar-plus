@@ -1,0 +1,10 @@
+# Must match android/app/build.gradle.kts defaultConfig.applicationId.
+# NOTE: kept as the original placeholder (see RELEASE_CHECKLIST.md) - Firebase
+# project diabetic-app-k is registered under this exact package name.
+package_name("com.example.sugar_plus")
+
+# Resolved relative to the working directory fastlane is invoked from, i.e.
+# `android/` (`cd android && fastlane <lane>`). Drop your Google Play
+# service account key at android/fastlane/pc-api-key.json - it's gitignored,
+# never commit it.
+json_key_file("fastlane/pc-api-key.json")

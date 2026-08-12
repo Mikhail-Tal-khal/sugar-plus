@@ -118,6 +118,42 @@ class AuthService {
     }
   }
 
+  // Permanently delete the current user's account and all of their data.
+  // Firebase requires a recent sign-in for this; if it's been a while we
+  // surface a clear message asking the user to sign in again and retry
+  // instead of silently failing.
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final testsSnapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('diabetes_tests')
+          .get();
+
+      final batch = _firestore.batch();
+      for (final doc in testsSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      batch.delete(_firestore.collection('users').doc(user.uid));
+      await batch.commit();
+
+      await user.delete();
+
+      await _googleSignIn.signOut();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw 'For your security, please sign out and sign in again before '
+            'deleting your account.';
+      }
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw 'An unexpected error occurred: ${e.toString()}';
+    }
+  }
+
   // Reset password
   Future<void> resetPassword(String email) async {
     try {
